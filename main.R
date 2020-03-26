@@ -6,6 +6,14 @@
 # 
 ######################################
 
+install.packages('tidyverse')
+install.packages('dplyr')
+install.packages('dbplyr')
+install.packages('tibble')
+install.packages('mgsub')
+install.packages('stopwords')
+install.packages('maps')
+
 library(tidyverse)
 library(dplyr)
 library(dbplyr)
@@ -13,7 +21,6 @@ library(tibble)
 library(mgsub)
 library(stopwords) # stopwords
 library(maps) # cities
-
 
 ########## 1.0 Load files
 jobs <- read.csv(file = './jobs.csv', header = TRUE, skip = 1, fileEncoding = "CP1252") %>% 
@@ -89,16 +96,23 @@ jobs <- jobs %>%
   mutate(tempTitles = tempTitles %>% trimws) %>%
   mutate(CleanedTitle = factor(tempTitles)) %>%
   select(-tempTitles)
- jobs
 
-########### 3.0 Add AlternativeTitle column to jobs
+########### 3.0 Build a function to find rate closeness of two strings
 matchingWordsRate <- function(textA, textB) {
+  # computes the ratio of matching words between two strings
   stra <- str_split(textA, " ") %>% unlist
   strb <- str_split(textB, " ") %>% unlist
   matches <- intersect(stra, strb) %>% length
   return(matches/(length(strb) + length(stra)))
 }
 
+########### 3.1 Build a function to find closest match among given job titles
+##### The point here is to match a given list, assuming that the cleaned title is 
+##### quite close to the solution. 
+##### If two candidates have the same rate, we just pick the first of them.
+##### Where I due to extend this, I fear that some title would not score more than 0 
+##### anywhere. I would then train a word2vec model on a dataset of resumes and add some 
+##### and try to see how word2vec synonymes match the given list.
 closestTitle <- function(textA) {
   out <- titles %>% select(OccupationTitle)
   out$Score <- mapply(matchingWordsRate, titles$OccupationTitle, textA)
@@ -106,29 +120,31 @@ closestTitle <- function(textA) {
   return(out$OccupationTitle[[1]] %>% as.character)
 }
 
+########### 3.2 Add AlternativeTitle column to jobs
 jobs$AlternativeTitle <- sapply(jobs$CleanedTitle, closestTitle)
 
 
-########### 4.0 Prepare a list of languages meant to be detected
+########### 4.0 Prepare a list of languages meant to be detected. Can be upgraded any time
 language <- c('french', 'english', 'german', 'spanish', 
-          'portuguese', 'chinese', 'italian', 'danish')
-example <- jobs$Requirements[[2]] %>% as.character
+          'portuguese', 'chinese', 'italian', 'danish', 'russian')
 
-detected_languages <- mapply(grepl, language, example)
-which(detected_languages) %>% names %>% paste(collapse = ", ")
-
+########### 4.1 A function te extract languages from a string
+##### I would rather create one column per language, with boolean values
+##### for machine learning purposes.
 detectLanguages <- function(x) {
-  detected_languages <- mapply(grepl, language, x)
+  detected_languages <- mapply(grepl, language, tolower(x))
   out <- which(detected_languages) %>% names %>% paste(collapse = ", ")
   return(out)
 }
+### Test it
+example <- jobs$Requirements[[3]]
 detectLanguages(example)
 
-########### 4. Extract required language(s) in jobs
+########### 4.2 Extract required language(s) in jobs
 jobs$Languages <- sapply(tolower(jobs$Requirements), detectLanguages)
 
-jobs %>% select(JobTitle, AlternativeTitle, Type, Languages) %>%
-  show
+########### 4.3 Output nice version of the dataframe
+cleanJobs <- jobs %>% select(AlternativeTitle, Type, Languages, JobTitle, CleanedTitle)
 
 
 
