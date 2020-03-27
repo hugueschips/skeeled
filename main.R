@@ -6,13 +6,13 @@
 # 
 ######################################
 
-install.packages('tidyverse')
-install.packages('dplyr')
-install.packages('dbplyr')
-install.packages('tibble')
-install.packages('mgsub')
-install.packages('stopwords')
-install.packages('maps')
+# install.packages('dplyr')
+# install.packages('dbplyr')
+# install.packages('tibble')
+# install.packages('tidyverse', dependencies = TRUE)
+# install.packages('mgsub')
+# install.packages('stopwords', dependencies = TRUE)
+# install.packages('maps')
 
 library(tidyverse)
 library(dplyr)
@@ -24,9 +24,9 @@ library(maps) # cities
 
 ########## 1.0 Load files
 jobs <- read.csv(file = './jobs.csv', header = TRUE, skip = 1, fileEncoding = "CP1252") %>% 
-  as.tibble
+  as_tibble
 titles <- read.csv(file = './titles.csv', header = TRUE, skip = 0, fileEncoding = "CP1252") %>% 
-  as.tibble
+  as_tibble
 
 ########## 1.1 Add type of contract column to jobs
 jobs <- jobs %>% 
@@ -36,11 +36,14 @@ jobs <- jobs %>%
                                 if_else(duration>365, 'fixed term (more than a year)', 'one year'))
                         ) %>% factor) %>%
   select(-duration) %>%
-  as.tibble
+  as_tibble
+View(jobs)
 
 ########### 2.0 Prepare a list of cities to remove. Let's assume cities are only at the end
-data(world.cities)
-cities <- paste0(" ", tolower(world.cities$name), "$")
+bigCities <- world.cities %>%
+  filter(pop>100000) %>%
+  mutate(name = tolower(name))
+cities <- paste0(" ", bigCities$name, "$")
 
 ########### 2.1 Prepare a list of stopwords to remove
 spaced_stopwords <- paste0(' ', stopwords(), ' ')
@@ -122,7 +125,7 @@ closestTitle <- function(textA) {
 
 ########### 3.2 Add AlternativeTitle column to jobs
 jobs$AlternativeTitle <- sapply(jobs$CleanedTitle, closestTitle)
-
+View(jobs)
 
 ########### 4.0 Prepare a list of languages meant to be detected. Can be upgraded any time
 language <- c('french', 'english', 'german', 'spanish', 
@@ -145,8 +148,4 @@ jobs$Languages <- sapply(tolower(jobs$Requirements), detectLanguages)
 
 ########### 4.3 Output nice version of the dataframe
 cleanJobs <- jobs %>% select(AlternativeTitle, Type, Languages, JobTitle, CleanedTitle)
-
-
-
-
-
+View(cleanJobs)
