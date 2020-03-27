@@ -1,4 +1,7 @@
 README
 
 Just clone or download the project on your computer and run it in RStudio.
+You can uncomment install.packages commands if necessary.
 You can then right click on the dataframes to navigate into them within RStudio.
+
+Have Fun!
